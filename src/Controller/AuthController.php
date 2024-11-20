@@ -37,19 +37,18 @@ class AuthController extends AbstractController
             ],
         ]);
 
-            // Vérifier la réponse
             if ($response->getStatusCode() === 201) {
-                return new JsonResponse(['message' => 'User registered successfully'], 201);
+                return new JsonResponse(['message' => 'Inscription effectuée'], 201);
             }
 
-            // Gérer les erreurs renvoyées par le service Users
             return new JsonResponse([
-                'error' => 'Failed to register user',
+                'error' => 'L\'inscription à echoué',
                 'details' => $response->toArray(false),
             ], $response->getStatusCode());
+
         } catch (\Exception $e) {
             return new JsonResponse([
-                'error' => 'Error communicating with user service', 
+                'error' => 'Le service users n\'a pas pu être atteint', 
                 'details' => $e->getMessage(),
                 'raw_content' => $request->getContent(),
                 'decoded_data' => json_decode($request->getContent(), true)
