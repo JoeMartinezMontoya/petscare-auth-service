@@ -22,33 +22,44 @@ class AuthController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
 
-        // Valider les données reçues
         if (!isset($data['email']) || !isset($data['password']) || empty($data['email']) || empty($data['password'])) {
-            return new JsonResponse(['error' => 'Email and password are required'], 400);
+            return new JsonResponse(['error' => 'Un email et un mot de passe sont requis'], 400);
         }
 
-        // Envoyer une requête POST au service Users
+        if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+            return new JsonResponse(['error' => 'Adresse email invalide'], 400);
+        }
+
+        if (strlen($data['password']) < 8) {
+            return new JsonResponse(['error' => 'Le mot de passe doit contenir au moins 8 caractères'], 400);
+        }
+
         try {
             $usersServiceUrl = $this->getParameter('users_service_base_url') . '/api/users';
             $response = $this->httpClient->request('POST', $usersServiceUrl, [
                 'json' => [
-                'email' => $data['email'],
-                'password' => $data['password'],
-            ],
-        ]);
+                    'email' => $data['email'],
+                    'password' => $data['password'],
+                ],
+                'timeout' => 10, // Timeout de 10 secondes
+            ]);
 
             if ($response->getStatusCode() === 201) {
                 return new JsonResponse(['message' => 'Inscription effectuée'], 201);
             }
 
+            if ($response->getStatusCode() === 409) {
+                return new JsonResponse(['error' => 'Un utilisateur avec cet email existe déjà'], 409);
+            }
+
             return new JsonResponse([
-                'error' => 'L\'inscription à echoué',
+                'error' => 'L\'inscription a échoué',
                 'details' => $response->toArray(false),
             ], $response->getStatusCode());
 
         } catch (\Exception $e) {
             return new JsonResponse([
-                'error' => 'Le service users n\'a pas pu être atteint', 
+                'error' => 'Le service users n\'a pas pu être atteint',
                 'details' => $e->getMessage(),
                 'raw_content' => $request->getContent(),
                 'decoded_data' => json_decode($request->getContent(), true)
