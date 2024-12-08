@@ -5,6 +5,7 @@ parameters:
   jwt_passphrase: '%env(JWT_PASSPHRASE)%'
 
 services:
+  Symfony\Contracts\HttpClient\HttpClientInterface: '@http_client'
   _defaults:
     autowire: true
     autoconfigure: true

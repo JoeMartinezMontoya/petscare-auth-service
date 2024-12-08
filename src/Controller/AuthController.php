@@ -6,10 +6,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Lcobucci\JWT\Builder;
 use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
@@ -101,7 +99,6 @@ class AuthController extends AbstractController
             return new JsonResponse(['error' => 'Identifiants incorrects'], 401);
         }
 
-        // Génère un token JWT
         $config = Configuration::forSymmetricSigner(
             new Sha256(),
             InMemory::file($this->getParameter('jwt_secret_key'))
@@ -111,7 +108,7 @@ class AuthController extends AbstractController
             ->issuedBy('http://auth-service')   // Service émetteur
             ->permittedFor('http://frontend')  // Destinataire
             ->issuedAt(new \DateTimeImmutable()) // Date d'émission
-            ->expiresAt((new \DateTimeImmutable())->modify('+1 hour')) // Expiration
+            ->expiresAt((new \DateTimeImmutable())->modify('+1 day')) // Expiration
             ->withClaim('email', $data['email']) // Données personnalisées
             ->getToken($config->signer(), $config->signingKey());
 
@@ -151,7 +148,7 @@ class AuthController extends AbstractController
     #[Route('api/auth/debug', name: 'auth_debug', methods: ['GET'])]
     public function debug(): JsonResponse
     {
-        $resolvedUrl = $this->getParameter('users_service_base_url');
-        return new JsonResponse(['resolved_url' => $resolvedUrl]);
+        $data = ['test' => 'test1'];
+        return new JsonResponse($data);
     }
 }
