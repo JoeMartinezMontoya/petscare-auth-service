@@ -10,6 +10,24 @@ services:
     autowire: true
     autoconfigure: true
 
+  # Clé publique pour la vérification des JWT
+  Lcobucci\JWT\Signer\Key\InMemory:
+    factory: ['Lcobucci\JWT\Signer\Key\InMemory', 'file']
+    arguments:
+      - '%env(resolve:JWT_PUBLIC_KEY)%' # Charge le contenu du fichier de clé publique
+
+  # Algorithme RSA pour la vérification
+  Lcobucci\JWT\Signer\Rsa\Sha256: ~
+
+  # Contrainte SignedWith pour vérifier la signature
+  Lcobucci\JWT\Validation\Constraint\SignedWith:
+    arguments:
+      - '@Lcobucci\JWT\Signer\Rsa\Sha256'
+      - '@Lcobucci\JWT\Signer\Key\InMemory'
+
+  # Validator pour la validation des tokens
+  Lcobucci\JWT\Validation\Validator: ~
+
   App\:
     resource: '../src/'
     exclude:
