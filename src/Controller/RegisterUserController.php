@@ -1,12 +1,12 @@
 <?php
 namespace App\Controller;
 
+use App\Service\AuthService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\HttpFoundation\Request;
-use App\Service\AuthService;
 
 class RegisterUserController extends AbstractController
 {
@@ -24,24 +24,24 @@ class RegisterUserController extends AbstractController
 
         if (!$data || !isset($data['email'], $data['password'])) {
             return new JsonResponse([
-                "source" => 'CreateUserController',
-                "type" => "https://example.com/probs/invalid-data",
-                "title" => "Données invalide",
-                "status" => Response::HTTP_BAD_REQUEST,
-                "detail" => "Une adresse mail et un mot de passe sont requis",
-                "message" => "Invalid input data for registration."
+                "source"  => "RegisterUserController",
+                "type"    => "https://example.com/probs/invalid-data",
+                "title"   => "Données invalide",
+                "status"  => Response::HTTP_BAD_REQUEST,
+                "detail"  => "Une adresse mail et un mot de passe sont requis",
+                "message" => "Invalid input data for registration.",
             ], Response::HTTP_BAD_REQUEST);
         }
 
         $result = $this->authService->registerUser($data);
 
         return new JsonResponse([
-            "source" => 'RegisterUserController',
-            "type" => "https://example.com/probs/invalid-data",
-            "title" => $result['title'],
-            "status" => $result['status'],
-            "detail" => $result['detail'],
-            "message" => $result['message']
+            "source"  => "RegisterUserController",
+            "type"    => "https://example.com/probs/invalid-data",
+            "title"   => $result['title'],
+            "status"  => $result['status'],
+            "detail"  => $result['detail'],
+            "message" => $result['message'],
         ], $result['status']);
     }
 }

@@ -18,14 +18,14 @@ class ValidateTokenController extends AbstractController
 
     public function __construct(Validator $validator, SignedWith $signedWith)
     {
-        $this->validator = $validator;
+        $this->validator  = $validator;
         $this->signedWith = $signedWith;
     }
 
     #[Route('/api/validate-token', name: 'validate_token', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
-        $content = json_decode($request->getContent(), true);
+        $content     = json_decode($request->getContent(), true);
         $tokenString = $content['token'] ?? null;
 
         if (!$tokenString) {
@@ -35,13 +35,14 @@ class ValidateTokenController extends AbstractController
         try {
             // Utilise JoseEncoder pour parser le token
             $parser = new Parser(new JoseEncoder());
-            $token = $parser->parse($tokenString);
+            $token  = $parser->parse($tokenString);
 
             // Valide le token avec SignedWith
             if (!$this->validator->validate($token, $this->signedWith)) {
                 return new JsonResponse(['error' => 'Token invalide.'], 401);
             }
 
+            /** @var \Lcobucci\JWT\Token\Plain $token */
             // Récupère des informations du payload (claims)
             $userEmail = $token->claims()->get('email', null);
 
