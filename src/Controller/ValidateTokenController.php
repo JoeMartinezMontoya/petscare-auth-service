@@ -1,7 +1,7 @@
 <?php
-
 namespace App\Controller;
 
+use App\Utils\HttpStatusCodes;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
 use Lcobucci\JWT\Validation\Constraint\SignedWith;
@@ -28,27 +28,23 @@ class ValidateTokenController extends AbstractController
         $content     = json_decode($request->getContent(), true);
         $tokenString = $content['token'] ?? null;
 
-        if (!$tokenString) {
-            return new JsonResponse(['error' => 'Token manquant.'], 400);
+        if (! $tokenString) {
+            return new JsonResponse(['error' => 'Token missing.'], HttpStatusCodes::BAD_REQUEST);
         }
 
         try {
-            // Utilise JoseEncoder pour parser le token
             $parser = new Parser(new JoseEncoder());
             $token  = $parser->parse($tokenString);
 
-            // Valide le token avec SignedWith
-            if (!$this->validator->validate($token, $this->signedWith)) {
-                return new JsonResponse(['error' => 'Token invalide.'], 401);
+            if (! $this->validator->validate($token, $this->signedWith)) {
+                return new JsonResponse(['error' => 'Invalid token.'], HttpStatusCodes::UNAUTHORIZED);
             }
 
             /** @var \Lcobucci\JWT\Token\Plain $token */
-            // Récupère des informations du payload (claims)
             $userEmail = $token->claims()->get('email', null);
-
-            return new JsonResponse(['email' => $userEmail], 200);
+            return new JsonResponse(['email' => $userEmail], HttpStatusCodes::SUCCESS);
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => 'Erreur lors de la validation du token.'], 401);
+            return new JsonResponse(['error' => 'Error validating token.'], HttpStatusCodes::UNAUTHORIZED);
         }
     }
 }

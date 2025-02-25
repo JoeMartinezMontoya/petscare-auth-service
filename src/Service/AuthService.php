@@ -1,82 +1,71 @@
 <?php
 namespace App\Service;
 
-use Lcobucci\JWT\Configuration;
-use Lcobucci\JWT\Signer\Key\InMemory;
-use Lcobucci\JWT\Signer\Rsa\Sha256;
+use App\Exception\ApiException;
+use App\Utils\HttpStatusCodes;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class AuthService
 {
-    private HttpClientInterface $httpClientInterface;
-    private string $jwtSecretKey;
+    private HttpClientInterface $httpClient;
+    private string $usersServiceBaseUrl;
+    private JwtService $jwtService;
 
-    public function __construct(HttpClientInterface $httpClientInterface, ParameterBagInterface $parameterBagInterface)
+    public function __construct(HttpClientInterface $httpClient, ParameterBagInterface $params, JwtService $jwtService)
     {
-        $this->httpClientInterface = $httpClientInterface;
-        $this->jwtSecretKey        = $parameterBagInterface->get('jwt_secret_key');
+        $this->httpClient          = $httpClient;
+        $this->usersServiceBaseUrl = $params->get('users_service_base_url');
+        $this->jwtService          = $jwtService;
     }
 
     public function registerUser(array $data): array
     {
-        $response = $this->httpClientInterface->request('POST', $_ENV['USERS_SERVICE_BASE_URL'] . '/api/users/create-user', [
-            'json' => $data,
-        ]);
-
-        $responseContent = $response->toArray();
-
-        return [
-            "source"  => "UserService::createUser",
-            "type"    => "https://example.com/probs/invalid-data",
-            "title"   => $responseContent['title'],
-            "status"  => $responseContent['status'],
-            "detail"  => $responseContent['detail'],
-            "message" => $responseContent['message'],
-        ];
+        return $this->makeRequest('POST', '/api/users/create-user', $data, HttpStatusCodes::CREATED, "AuthService::registerUser");
     }
 
     public function loginUser(array $data): array
     {
-        $response = $this->httpClientInterface->request('POST', $_ENV['USERS_SERVICE_BASE_URL'] . '/api/users/check-user-credentials', [
-            'json' => $data,
-        ]);
+        $responseData = $this->makeRequest('POST', '/api/users/check-user-credentials', $data, HttpStatusCodes::SUCCESS, "AuthService::loginUser");
+        $token        = $this->jwtService->generateToken($responseData['email'] ?? '');
+        return array_merge($responseData, ["token" => $token]);
+    }
 
-        $data = json_decode($response->getContent(), true);
+    private function makeRequest(string $method, string $endpoint, array $data, int $expectedStatus, string $source): array
+    {
+        try {
+            $response     = $this->httpClient->request($method, $this->usersServiceBaseUrl . $endpoint, ['json' => $data]);
+            $responseData = json_decode($response->getContent(false), true);
+            return array_merge($this->validateApiResponse($source, $responseData, $expectedStatus), $responseData);
+        } catch (\Exception $e) {
+            throw new ApiException(
+                title: "Service Unavailable",
+                detail: "Error communicating with User Service.",
+                message: $e->getMessage(),
+                status: HttpStatusCodes::SERVICE_UNAVAILABLE
+            );
+        }
+    }
 
-        if (Response::HTTP_OK !== $data['status']) {
-            return [
-                "source"  => "AuthService::loginUser",
-                "type"    => "https://example.com/probs/invalid-data",
-                "title"   => $data['title'],
-                "status"  => $data['status'],
-                "detail"  => $data['detail'],
-                "message" => $data['message'],
-            ];
+    private function validateApiResponse(string $source, array $data, int $expectedStatus): array
+    {
+        $validStatuses = [$expectedStatus, HttpStatusCodes::SUCCESS];
+        if (! isset($data['status']) || ! in_array($data['status'], $validStatuses, true)) {
+            throw new ApiException(
+                title: $data['title'] ?? "Unknown Error",
+                detail: $data['detail'] ?? "No details provided.",
+                message: $data['message'] ?? "Something went wrong.",
+                status: $data['status'] ?? HttpStatusCodes::SERVER_ERROR
+            );
         }
 
-        $config = Configuration::forSymmetricSigner(
-            new Sha256(),
-            InMemory::file($this->jwtSecretKey)
-        );
-
-        $token = $config->builder()
-            ->issuedBy('http://auth-service')
-            ->permittedFor('http://frontend')
-            ->issuedAt(new \DateTimeImmutable())
-            ->expiresAt((new \DateTimeImmutable())->modify('+1 day'))
-            ->withClaim('email', $data['email'])
-            ->getToken($config->signer(), $config->signingKey());
-
         return [
-            "source"  => "AuthService::loginUser",
-            "type"    => "https://example.com/probs/invalid-data",
-            "title"   => $data['title'],
+            "source"  => $source,
+            "type"    => $data['type'] ?? "https://example.com/probs/unknown",
+            "title"   => $data['title'] ?? "Success",
             "status"  => $data['status'],
-            "detail"  => $data['detail'],
-            "message" => $data['message'],
-            "token"   => $token,
+            "detail"  => $data['detail'] ?? "No details available.",
+            "message" => $data['message'] ?? "Operation completed successfully.",
         ];
     }
 }
