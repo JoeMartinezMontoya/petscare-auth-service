@@ -9,14 +9,14 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class AuthService
 {
     private HttpClientInterface $httpClient;
-    private string $usersServiceBaseUrl;
+    private string $usersServiceUrl;
     private JwtService $jwtService;
 
     public function __construct(HttpClientInterface $httpClient, ParameterBagInterface $params, JwtService $jwtService)
     {
-        $this->httpClient          = $httpClient;
-        $this->usersServiceBaseUrl = $params->get('users_service_base_url');
-        $this->jwtService          = $jwtService;
+        $this->httpClient      = $httpClient;
+        $this->usersServiceUrl = $params->get('users_service_url');
+        $this->jwtService      = $jwtService;
     }
 
     public function registerUser(array $data): array
@@ -34,7 +34,7 @@ class AuthService
     private function makeRequest(string $method, string $endpoint, array $data, int $expectedStatus, string $source): array
     {
         try {
-            $response     = $this->httpClient->request($method, $this->usersServiceBaseUrl . $endpoint, ['json' => $data]);
+            $response     = $this->httpClient->request($method, $this->usersServiceUrl . $endpoint, ['json' => $data]);
             $responseData = json_decode($response->getContent(false), true);
             return array_merge($this->validateApiResponse($source, $responseData, $expectedStatus), $responseData);
         } catch (\Exception $e) {
