@@ -1,7 +1,6 @@
 <?php
 namespace App\Service;
 
-use App\Utils\HttpStatusCodes;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -20,31 +19,21 @@ class AuthService
 
     public function registerUser(array $data): array
     {
-        return $this->makeRequest('POST', '/api/users/create-user', $data, HttpStatusCodes::CREATED, "AuthService::registerUser");
+        return $this->makeRequest('POST', '/api/users/create-user', $data);
     }
 
     public function loginUser(array $data): array
     {
-        $responseData = $this->makeRequest('POST', '/api/users/check-user-credentials', $data, HttpStatusCodes::SUCCESS, "AuthService::loginUser");
+        $responseData = $this->makeRequest('POST', '/api/users/check-user-credentials', $data);
         $token        = $this->jwtService->generateToken($responseData['mail']);
-        return array_merge($responseData, ["token" => $token]);
+        $fullResponse = array_merge($responseData, ["token" => $token]);
+        return $fullResponse;
     }
 
-    private function makeRequest(string $method, string $endpoint, array $data, int $expectedStatus, string $source): array
+    private function makeRequest(string $method, string $endpoint, array $data): array
     {
-        try {
-            $response     = $this->httpClient->request($method, $this->usersServiceUrl . $endpoint, ['json' => $data]);
-            $responseData = json_decode($response->getContent(false), true);
-            return $responseData;
-        } catch (\Exception $e) {
-            return [
-                "source"  => "AuthService::$source",
-                "type"    => "https://example.com/probs/service-unavailable",
-                "title"   => "Service unavailable",
-                "status"  => HttpStatusCodes::SERVICE_UNAVAILABLE,
-                "detail"  => "An error occured while trying to reach users-service",
-                "message" => $e->getMessage(),
-            ];
-        }
+        $response     = $this->httpClient->request($method, $this->usersServiceUrl . $endpoint, ['json' => $data]);
+        $responseData = json_decode($response->getContent(false), true);
+        return $responseData;
     }
 }
