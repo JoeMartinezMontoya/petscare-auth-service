@@ -1,11 +1,10 @@
 <?php
 namespace App\Controller;
 
+use App\Exception\ApiException;
+use App\Service\JwtService;
+use App\Utils\ApiResponse;
 use App\Utils\HttpStatusCodes;
-use Lcobucci\JWT\Encoding\JoseEncoder;
-use Lcobucci\JWT\Token\Parser;
-use Lcobucci\JWT\Validation\Constraint\SignedWith;
-use Lcobucci\JWT\Validation\Validator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,38 +12,41 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class ValidateTokenController extends AbstractController
 {
-    private Validator $validator;
-    private SignedWith $signedWith;
-
-    public function __construct(Validator $validator, SignedWith $signedWith)
-    {
-        $this->validator  = $validator;
-        $this->signedWith = $signedWith;
-    }
-
     #[Route('/api/validate-token', name: 'validate_token', methods: ['POST'])]
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request, JwtService $jwtService): JsonResponse
     {
-        $content     = json_decode($request->getContent(), true);
-        $tokenString = $content['token'] ?? null;
+        $data = json_decode($request->getContent(), true);
 
-        if (! $tokenString) {
-            return new JsonResponse(['error' => 'Token missing.'], HttpStatusCodes::BAD_REQUEST);
+        if (! $data) {
+            return ApiResponse::error([
+                "title"   => "Token Missing",
+                "detail"  => "Token missing",
+                "message" => "No token received",
+            ], HttpStatusCodes::BAD_REQUEST);
         }
 
         try {
-            $parser = new Parser(new JoseEncoder());
-            $token  = $parser->parse($tokenString);
+            $response = $jwtService->validateToken($data['token']);
+            return ApiResponse::success([
+                "detail"  => "Validation successful",
+                "message" => "Token valid",
+                "email"   => $response,
+            ], HttpStatusCodes::SUCCESS);
 
-            if (! $this->validator->validate($token, $this->signedWith)) {
-                return new JsonResponse(['error' => 'Invalid token.'], HttpStatusCodes::UNAUTHORIZED);
+        } catch (\Exception $e) {
+            if ($e instanceof ApiException) {
+                return ApiResponse::error([
+                    "title"   => $e->getTitle(),
+                    "detail"  => $e->getDetail(),
+                    "message" => $e->getMessage(),
+                ], $e->getStatusCode());
             }
 
-            /** @var \Lcobucci\JWT\Token\Plain $token */
-            $userEmail = $token->claims()->get('email', null);
-            return new JsonResponse(['email' => $userEmail], HttpStatusCodes::SUCCESS);
-        } catch (\Exception $e) {
-            return new JsonResponse(['error' => 'Error validating token.'], HttpStatusCodes::UNAUTHORIZED);
+            return ApiResponse::error([
+                "title"   => "Unexpected Error",
+                "detail"  => "An unexpected error occurred while checking the user's credentials",
+                "message" => $e->getMessage(),
+            ], HttpStatusCodes::SERVER_ERROR);
         }
     }
 }
