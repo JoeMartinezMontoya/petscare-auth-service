@@ -26,7 +26,7 @@ class AuthService
     public function loginUser(array $data): array
     {
         $responseData = $this->makeRequest('POST', '/api/users/check-user-credentials', $data, HttpStatusCodes::SUCCESS, "AuthService::loginUser");
-        $token        = $this->jwtService->generateToken($responseData['email'] ?? '');
+        $token        = $this->jwtService->generateToken($responseData['mail']);
         return array_merge($responseData, ["token" => $token]);
     }
 
