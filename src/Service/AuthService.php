@@ -1,7 +1,6 @@
 <?php
 namespace App\Service;
 
-use App\Exception\ApiException;
 use App\Utils\HttpStatusCodes;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -36,36 +35,16 @@ class AuthService
         try {
             $response     = $this->httpClient->request($method, $this->usersServiceUrl . $endpoint, ['json' => $data]);
             $responseData = json_decode($response->getContent(false), true);
-            return array_merge($this->validateApiResponse($source, $responseData, $expectedStatus), $responseData);
+            return $responseData;
         } catch (\Exception $e) {
-            throw new ApiException(
-                title: "Service Unavailable",
-                detail: "Error communicating with User Service.",
-                message: $e->getMessage(),
-                status: HttpStatusCodes::SERVICE_UNAVAILABLE
-            );
+            return [
+                "source"  => "AuthService::$source",
+                "type"    => "https://example.com/probs/service-unavailable",
+                "title"   => "Service unavailable",
+                "status"  => HttpStatusCodes::SERVICE_UNAVAILABLE,
+                "detail"  => "An error occured while trying to reach users-service",
+                "message" => $e->getMessage(),
+            ];
         }
-    }
-
-    private function validateApiResponse(string $source, array $data, int $expectedStatus): array
-    {
-        $validStatuses = [$expectedStatus, HttpStatusCodes::SUCCESS];
-        if (! isset($data['status']) || ! in_array($data['status'], $validStatuses, true)) {
-            throw new ApiException(
-                title: $data['title'] ?? "Unknown Error",
-                detail: $data['detail'] ?? "No details provided.",
-                message: $data['message'] ?? "Something went wrong.",
-                status: $data['status'] ?? HttpStatusCodes::SERVER_ERROR
-            );
-        }
-
-        return [
-            "source"  => $source,
-            "type"    => $data['type'] ?? "https://example.com/probs/unknown",
-            "title"   => $data['title'] ?? "Success",
-            "status"  => $data['status'],
-            "detail"  => $data['detail'] ?? "No details available.",
-            "message" => $data['message'] ?? "Operation completed successfully.",
-        ];
     }
 }

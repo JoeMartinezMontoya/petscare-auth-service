@@ -1,6 +1,7 @@
 <?php
 namespace App\Controller;
 
+use App\Exception\ApiException;
 use App\Service\AuthService;
 use App\Utils\HttpStatusCodes;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,8 +19,17 @@ class RegisterUserController extends AbstractController
         try {
             $response = $authService->registerUser($data);
             return new JsonResponse(["message" => $response['message']], HttpStatusCodes::SUCCESS);
+        } catch (ApiException $e) {
+            return new JsonResponse([
+                "error"   => $e->getTitle(),
+                "message" => $e->getCustomMessage(),
+                "detail"  => $e->getDetail(),
+            ], $e->getStatusCode());
         } catch (\Exception $e) {
-            return new JsonResponse(["error" => $e->getMessage()], HttpStatusCodes::SERVER_ERROR);
+            return new JsonResponse([
+                "error"   => "internal-server-error",
+                "message" => $e->getMessage(),
+            ], HttpStatusCodes::SERVER_ERROR);
         }
     }
 }
