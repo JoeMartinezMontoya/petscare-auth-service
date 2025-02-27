@@ -16,7 +16,6 @@ class RegisterUserController extends AbstractController
     public function __invoke(Request $request, AuthService $authService): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-
         if (! $data) {
             return ApiResponse::error([
                 "title"   => "Invalid JSON Payload",
@@ -27,7 +26,7 @@ class RegisterUserController extends AbstractController
 
         try {
             $response = $authService->registerUser($data);
-            return ApiResponse::success($response, HttpStatusCodes::SUCCESS);
+            return ApiResponse::success($response, $response['response-status']);
         } catch (\Exception $e) {
             if ($e instanceof ApiException) {
                 return ApiResponse::error([
